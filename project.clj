@@ -13,16 +13,13 @@
                  [compojure "1.6.0"]
                  [hiccup "1.0.5"]
                  [yogthos/config "0.9"]
-                 [org.clojure/clojurescript "1.9.946"
-                  :scope "provided"]
+                 [org.clojure/clojurescript "1.9.946" :scope "provided"]
                  [secretary "1.2.3"]
-                 [venantius/accountant "0.2.3"
-                  :exclusions [org.clojure/tools.reader]]]
+                 [venantius/accountant "0.2.3" :exclusions [org.clojure/tools.reader]]]
 
   :plugins [[lein-environ "1.1.0"]
             [lein-cljsbuild "1.1.7"]
-            [lein-asset-minifier "0.2.7"
-             :exclusions [org.clojure/clojure]]]
+            [lein-asset-minifier "0.2.7" :exclusions [org.clojure/clojure]]]
 
   :ring {:handler crypticker.handler/app
          :uberwar-name "crypticker.war"}
@@ -33,55 +30,44 @@
 
   :main crypticker.server
 
-  :clean-targets ^{:protect false}
-  [:target-path
-   [:cljsbuild :builds :app :compiler :output-dir]
-   [:cljsbuild :builds :app :compiler :output-to]]
+  :clean-targets ^{:protect false} [:target-path
+                                    [:cljsbuild :builds :app :compiler :output-dir]
+                                    [:cljsbuild :builds :app :compiler :output-to]]
 
   :source-paths ["src/clj" "src/cljc"]
   :resource-paths ["resources" "target/cljsbuild"]
 
-  :minify-assets
-  {:assets
-   {"resources/public/css/site.min.css" "resources/public/css/site.css"}}
+  :minify-assets {:assets {"resources/public/css/site.min.css"
+                           "resources/public/css/site.css"}}
 
-  :cljsbuild
-  {:builds {:min
-            {:source-paths ["src/cljs" "src/cljc" "env/prod/cljs"]
-             :compiler
-             {:output-to        "target/cljsbuild/public/js/app.js"
-              :output-dir       "target/cljsbuild/public/js"
-              :source-map       "target/cljsbuild/public/js/app.js.map"
-              :optimizations :advanced
-              :pretty-print  false}}
-            :app
-            {:source-paths ["src/cljs" "src/cljc" "env/dev/cljs"]
-             :figwheel {:on-jsload "crypticker.core/mount-root"}
-             :compiler
-             {:main "crypticker.dev"
-              :asset-path "/js/out"
-              :output-to "target/cljsbuild/public/js/app.js"
-              :output-dir "target/cljsbuild/public/js/out"
-              :source-map true
-              :optimizations :none
-              :pretty-print  true}}
+  :cljsbuild {:builds {:min {:source-paths ["src/cljs" "src/cljc" "env/prod/cljs"]
+                             :compiler {:output-to "target/cljsbuild/public/js/app.js"
+                                        :output-dir "target/cljsbuild/public/js"
+                                        :source-map "target/cljsbuild/public/js/app.js.map"
+                                        :foreign-libs [{:file "resources/public/js/socket.io.js"
+                                                        :file-min "resources/public/js/socket.io.slim.js"
+                                                        :provides ["socket.io"]}]
+                                        :optimizations :advanced
+                                        :pretty-print false}}
+                       :app {:source-paths ["src/cljs" "src/cljc" "env/dev/cljs"]
+                             :figwheel {:on-jsload "crypticker.core/mount-root"}
+                             :compiler {:main "crypticker.dev"
+                                        :asset-path "/js/out"
+                                        :output-to "target/cljsbuild/public/js/app.js"
+                                        :output-dir "target/cljsbuild/public/js/out"
+                                        :foreign-libs [{:file "resources/public/js/socket.io.js"
+                                                        :file-min "resources/public/js/socket.io.slim.js"
+                                                        :provides ["socket.io"]}]
+                                        :source-map true
+                                        :optimizations :none
+                                        :pretty-print true}}}}
 
-
-
-            }
-   }
-
-
-  :figwheel
-  {:http-server-root "public"
-   :server-port 3449
-   :nrepl-port 7002
-   :nrepl-middleware ["cemerick.piggieback/wrap-cljs-repl"
-                      ]
-   :css-dirs ["resources/public/css"]
-   :ring-handler crypticker.handler/app}
-
-
+  :figwheel {:http-server-root "public"
+             :server-port 3449
+             :nrepl-port 7002
+             :nrepl-middleware ["cemerick.piggieback/wrap-cljs-repl"]
+             :css-dirs ["resources/public/css"]
+             :ring-handler crypticker.handler/app}
 
   :profiles {:dev {:repl-options {:init-ns crypticker.repl
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
@@ -93,14 +79,10 @@
                                   [figwheel-sidecar "0.5.14"]
                                   [org.clojure/tools.nrepl "0.2.13"]
                                   [com.cemerick/piggieback "0.2.2"]
-                                  [pjstadig/humane-test-output "0.8.3"]
-                                  
- ]
+                                  [pjstadig/humane-test-output "0.8.3"]]
 
                    :source-paths ["env/dev/clj"]
-                   :plugins [[lein-figwheel "0.5.14"]
-]
-
+                   :plugins [[lein-figwheel "0.5.14"]]
                    :injections [(require 'pjstadig.humane-test-output)
                                 (pjstadig.humane-test-output/activate!)]
 
