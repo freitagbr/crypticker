@@ -1,5 +1,5 @@
 .body-container {
-  font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
   max-width: 600px;
   margin: 0 auto;
   padding-top: 72px;
@@ -31,4 +31,8 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+pre {
+    font-family: Menlo;
 }

@@ -5,64 +5,89 @@
             [secretary.core   :as secretary :include-macros true]
             [accountant.core  :as accountant]
             [cljs-http.client :as http]
+            [amalloy.ring-buffer :refer [ring-buffer]]
             [socket.io]))
 
 ;; -------------------------
 ;; Components
 
-(defonce timer (atom (js/Date.)))
-(defonce time-color (atom "#f34"))
-(defonce time-updater
-  (js/setInterval
-    #(reset! timer (js/Date.)) 1000))
-(defonce txs (atom '()))
+(defonce blocks (atom (ring-buffer 5)))
+(defonce block-color (atom "#abc"))
+
+(defonce txs (atom (ring-buffer 10)))
 (defonce tx-focus (atom {}))
 (defonce tx-color (atom "#abc"))
-(defonce socket (js/io "https://blockexplorer.com/"))
+
+(defonce socket (atom (js/io "https://blockexplorer.com/")))
 
 (defn subscribe
   "subscribes to the transaction channel"
   []
-  (.emit socket "subscribe" "inv"))
+  (.emit @socket "subscribe" "inv"))
 
-(defn add-transaction
-  "adds a transaction to the list of transactions"
-  [data]
-  (swap! txs (fn [txs tx]
-               (cons tx (if (>= (count txs) 5)
-                          (drop-last txs)
-                          txs)))
-         data))
+(defn add-to
+  "returns a function that will add data to a ring buffer with a size"
+  [ring]
+  (fn [& data]
+    (swap! ring into data)))
+
+(defonce add-block (add-to blocks))
+(defonce add-tx (add-to txs))
+
+(defn get-blocks
+  "gets n most recent blocks"
+  [n]
+  (go (let [res (<! (http/get "https://blockexplorer.com/api/blocks"
+                              {:with-credentials? false
+                               :query-params {"limit" n}}))]
+        (if (= (:status res) 200)
+          (apply add-block (-> res :body :blocks))))))
+
+(defn block-list []
+  [:table {:style {:width "400px"}}
+   [:thead
+    [:tr
+     [:th {:style {:text-align "left"}} "Hash"]
+     [:th {:style {:text-align "left"}} "Transactions"]
+     [:th {:style {:text-align "right"}} "Size"]]]
+   (into [:tbody]
+         (for [block (reverse @blocks) ; ring buffer elements are backwards
+               :let [height (:height block)
+                     len (:txlength block)
+                     size (:size block)]]
+           ^{:key height}
+           [:tr.block
+            [:td {:style {:text-align "left"}}
+             [:pre
+              {:style {:color @block-color}}
+              (subs height 0 8)]]
+            [:td {:style {:text-align "left"}} len]
+            [:td {:style {:text-align "right"}} size]]))])
 
 (defn get-tx
   "gets info about a transaction"
   [txid]
-  (go (let [response (<! (http/get (str "https://blockexplorer.com/api/tx/" txid)
-                                   {:with-credentials? false}))]
-        (reset! tx-focus (:body response)))))
+  (go (let [res (<! (http/get (str "https://blockexplorer.com/api/tx/" txid)
+                              {:with-credentials? false}))]
+        (reset! tx-focus (:body res)))))
 
-(defn clock []
-  (let [time-str (-> @timer .toTimeString (clojure.string/split " ") first)]
-    [:div.example-clock
-     {:style {:color @time-color}}
-     time-str]))
-
-(defn transactions []
-  [:table
+(defn tx-list []
+  [:table {:style {:width "400px"}}
    [:thead
     [:tr
-     [:th "Hash"] [:th "Value"]]]
+     [:th {:style {:text-align "left"}} "Hash"]
+     [:th {:style {:text-align "right"}} "Value"]]]
    (into [:tbody]
-         (for [tx @txs
+         (for [tx (reverse @txs) ; ring buffer elements are backwards
                :let [txid (.-txid tx)
                      value (.-valueOut tx)]]
            ^{:key txid}
            [:tr.tx {:on-click #(get-tx txid)}
-            [:td
+            [:td {:style {:text-align "left"}}
              [:pre
               {:style {:color @tx-color}}
               (subs txid 0 8)]]
-            [:td
+            [:td {:style {:text-align "right"}}
              [:pre value]]]))])
 
 (defn focused-tx []
@@ -88,11 +113,11 @@
 ;; Views
 
 (defn home-page []
-  [:div [:h2 "Welcome to crypticker"]
+  [:div [:h2 "Crypticker"]
    [:div
-    [:h3 "The time is now:"]
-    [clock]
-    [transactions]
+    [:h3 "Bitcoin"]
+    [tx-list]
+    [block-list]
     [focused-tx]]
    [:div [:a {:href "/about"} "go to about page"]]])
 
@@ -130,9 +155,12 @@
        (secretary/locate-route path))})
   (accountant/dispatch-current!)
 
+  (get-blocks 5)
+
   ; set up socket.io connection to blockexplorer
-  (doto socket
+  (doto @socket
     (.on "connect" subscribe)
-    (.on "tx" add-transaction))
+    (.on "block" add-block)
+    (.on "tx" add-tx))
 
   (mount-root))
