@@ -1,8 +1,10 @@
 (ns crypticker.core
+  (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async  :as async :refer (<! >! put! chan)]
             [reagent.core     :as r     :refer [atom]]
             [secretary.core   :as secretary :include-macros true]
             [accountant.core  :as accountant]
+            [cljs-http.client :as http]
             [socket.io]))
 
 ;; -------------------------
@@ -14,6 +16,7 @@
   (js/setInterval
     #(reset! timer (js/Date.)) 1000))
 (defonce txs (atom '()))
+(defonce tx-focus (atom {}))
 (defonce tx-color (atom "#abc"))
 (defonce socket (js/io "https://blockexplorer.com/"))
 
@@ -25,13 +28,18 @@
 (defn add-transaction
   "adds a transaction to the list of transactions"
   [data]
-  (do
-    (js/console.log data)
-    (swap! txs (fn [txs tx]
-                 (cons tx (if (>= (count txs) 5)
-                            (drop-last txs)
-                            txs)))
-           data)))
+  (swap! txs (fn [txs tx]
+               (cons tx (if (>= (count txs) 5)
+                          (drop-last txs)
+                          txs)))
+         data))
+
+(defn get-tx
+  "gets info about a transaction"
+  [txid]
+  (go (let [response (<! (http/get (str "https://blockexplorer.com/api/tx/" txid)
+                                   {:with-credentials? false}))]
+        (reset! tx-focus (:body response)))))
 
 (defn clock []
   (let [time-str (-> @timer .toTimeString (clojure.string/split " ") first)]
@@ -40,16 +48,41 @@
      time-str]))
 
 (defn transactions []
-  (into [:div]
-        (for [tx @txs
-              :let [txid (.-txid tx)
-                    value (.-valueOut tx)]]
-          ^{:key txid}
-          [:div.tx
-           [:pre
-            {:style {:color @tx-color}}
-            (subs txid 0 8)]
-           [:pre value]])))
+  [:table
+   [:thead
+    [:tr
+     [:th "Hash"] [:th "Value"]]]
+   (into [:tbody]
+         (for [tx @txs
+               :let [txid (.-txid tx)
+                     value (.-valueOut tx)]]
+           ^{:key txid}
+           [:tr.tx {:on-click #(get-tx txid)}
+            [:td
+             [:pre
+              {:style {:color @tx-color}}
+              (subs txid 0 8)]]
+            [:td
+             [:pre value]]]))])
+
+(defn focused-tx []
+  (if (> (count @tx-focus) 0)
+    (let [{:keys [valueIn valueOut txid size fees blockheight]} @tx-focus]
+      [:div
+       [:h4 "Value In"]
+       [:div valueIn]
+       [:h4 "Value Out"]
+       [:div valueOut]
+       [:h4 "Hash"]
+       [:pre txid]
+       [:h4 "Size"]
+       [:pre (str size " bytes")]
+       [:h4 "Fees"]
+       [:div fees]
+       [:h4 "Block Height"]
+       [:div blockheight]])
+    nil))
+
 
 ;; -------------------------
 ;; Views
@@ -59,7 +92,8 @@
    [:div
     [:h3 "The time is now:"]
     [clock]
-    [transactions]]
+    [transactions]
+    [focused-tx]]
    [:div [:a {:href "/about"} "go to about page"]]])
 
 (defn about-page []

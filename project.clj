@@ -15,6 +15,7 @@
                  [yogthos/config "0.9"]
                  [org.clojure/clojurescript "1.9.946" :scope "provided"]
                  [secretary "1.2.3"]
+                 [cljs-http "0.1.44"]
                  [venantius/accountant "0.2.3" :exclusions [org.clojure/tools.reader]]]
 
   :plugins [[lein-environ "1.1.0"]
