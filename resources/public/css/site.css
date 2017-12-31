@@ -1,3 +1,7 @@
+* {
+    transition: all .2s ease-in;
+}
+
 .body-container {
     font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
     background-color: #f0f3f7;
@@ -75,7 +79,7 @@ a:hover {
 }
 
 .cxs .cx + .cx {
-    border-top: 3px solid #f0f3f7;
+    border-top: 2px solid #f0f3f7;
 }
 
 .row {
